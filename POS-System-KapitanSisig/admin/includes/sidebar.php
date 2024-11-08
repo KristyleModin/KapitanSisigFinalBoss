@@ -30,7 +30,7 @@
                     </a>
                     <a class="nav-link" href="purchase-orders.php">
                         <div class="sb-nav-link-icon"><i class="fas fa-list"></i></div>
-                        Purchase Orders
+                        Purchase Management
                     </a>
                 <?php endif; ?>
                 <a class="nav-link collapsed" href="#" data-bs-toggle="collapse" data-bs-target="#collapseInventory" aria-expanded="false" aria-controls="collapseInventory">
