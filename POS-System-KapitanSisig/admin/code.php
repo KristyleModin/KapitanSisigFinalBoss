@@ -225,64 +225,58 @@ if (isset($_POST['saveSupplierIngredient'])) {
 
 // Update Supplier Ingredients
 if (isset($_POST['updateSupplierIngredient'])) {
-    $supplier_id = $_POST['supplier_id'];
+    $supplierId = intval($_POST['supplier_id']);
 
-    // Remove any ingredients that were marked for deletion
-    if (isset($_POST['remove_recipe_ingredient_id'])) {
-        $removeIngredientIds = $_POST['remove_recipe_ingredient_id'];
-        foreach ($removeIngredientIds as $removeId) {
-            if (!empty($removeId)) {
-                $deleteQuery = "DELETE FROM supplier_ingredients WHERE id = ?";
-                $stmt = mysqli_prepare($conn, $deleteQuery);
-                mysqli_stmt_bind_param($stmt, 'i', $removeId);
-                mysqli_stmt_execute($stmt);
+    // Handle ingredient deletion
+    if (!empty($_POST['delete_ingredient'])) {
+        foreach ($_POST['delete_ingredient'] as $ingredientIdToDelete) {
+            $ingredientIdToDelete = intval($ingredientIdToDelete);
+            $deleteQuery = "DELETE FROM supplier_ingredients WHERE id = $ingredientIdToDelete AND supplier_id = $supplierId";
+            mysqli_query($conn, $deleteQuery);
+        }
+    }
+
+    // Update existing ingredient information
+    if (!empty($_POST['ingredient_id'])) {
+        foreach ($_POST['ingredient_id'] as $key => $ingredientId) {
+            $ingredientId = intval($ingredientId);
+            $unitId = intval($_POST['unit_id'][$key]);
+            $price = floatval($_POST['price'][$key]);
+
+            // Ensure the ingredient is not marked for deletion before updating
+            if (!in_array($ingredientId, $_POST['delete_ingredient'] ?? [])) {
+                $updateQuery = "
+                    UPDATE supplier_ingredients 
+                    SET unit_id = $unitId, price = $price 
+                    WHERE id = $ingredientId AND supplier_id = $supplierId
+                ";
+                mysqli_query($conn, $updateQuery);
             }
         }
     }
 
-    // Update existing supplier ingredients
-    if (isset($_POST['ingredient_id']) && isset($_POST['price']) && isset($_POST['unit_id'])) {
-        $ingredient_ids = $_POST['ingredient_id'];
-        $prices = $_POST['price'];
-        $unit_ids = $_POST['unit_id'];
+    // Handle adding new ingredients
+    if (!empty($_POST['new_ingredient_id'])) {
+        foreach ($_POST['new_ingredient_id'] as $key => $newIngredientId) {
+            $newIngredientId = intval($newIngredientId);
+            $newUnitId = intval($_POST['new_unit_id'][$key]);
+            $newPrice = floatval($_POST['new_price'][$key]);
 
-        mysqli_begin_transaction($conn);
-        try {
-            for ($i = 0; $i < count($ingredient_ids); $i++) {
-                $ingredient_id = $ingredient_ids[$i];
-                $price = $prices[$i];
-                $unit_id = $unit_ids[$i];
-
-                if (!empty($ingredient_id) && !empty($price) && !empty($unit_id)) {
-                    $stmt = $conn->prepare("
-                        UPDATE supplier_ingredients 
-                        SET price = ?, unit_id = ? 
-                        WHERE id = ? AND supplier_id = ?");
-                    $stmt->bind_param("diii", $price, $unit_id, $ingredient_id, $supplier_id);
-
-                    if (!$stmt->execute()) {
-                        throw new Exception($stmt->error);
-                    }
-                }
+            // Check if the new ingredient has valid data
+            if ($newIngredientId > 0 && $newUnitId > 0 && $newPrice >= 0) {
+                $insertQuery = "
+                    INSERT INTO supplier_ingredients (supplier_id, ingredient_id, unit_id, price)
+                    VALUES ($supplierId, $newIngredientId, $newUnitId, $newPrice)
+                ";
+                mysqli_query($conn, $insertQuery);
             }
-
-            mysqli_commit($conn);
-            $_SESSION['message'] = "Supplier ingredients updated successfully.";
-            header("Location: suppliers.php");
-            exit();
-        } catch (Exception $e) {
-            mysqli_rollback($conn);
-            $_SESSION['message'] = "Error updating supplier ingredients: " . $e->getMessage();
-            header("Location: suppliers.php");
-            exit();
         }
-    } else {
-        $_SESSION['message'] = "No ingredients were selected for update.";
-        header("Location: suppliers.php");
-        exit();
     }
+
+    // Redirect back to the supplier ingredients page after the operation
+    header('Location: suppliers-ingredient-view.php?id=' . urlencode($supplierId));
+    exit;
 }
-
 
 // Save Ingredient
 // if (isset($_POST['saveIngredient'])) {
